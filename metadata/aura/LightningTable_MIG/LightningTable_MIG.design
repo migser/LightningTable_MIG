@@ -1,0 +1,14 @@
+<design:component label="Lightning Table Mig" >
+    <design:attribute name="objectName" label="Object name" Description="API Name of the object that you want in the related list (e.g. Contact or Something__c)" />
+  	<design:attribute name="parentId" label="Parent Id" Description="API name for the ID field of the parent record. Blank if it is this record ID" />
+    <design:attribute name="lookupField" label="Lookup Field" Description="API Name of the field that looks up to the parent (e.g. AccountID if the related lists is contact, or Parent__c if the related list is a custom object)" />
+    <design:attribute name="displayFields" label="Fields to Show" Description="Comma-separated list of API names of the fields you want to show up on the related list.  Field1, Field2, Field3__c ...  They'll show up in the order given, with the first field being a link to the record detail page"/>
+    <design:attribute name="editableFields" label="Fields that should be editable" Description="Comma-separated list of API names of the fields you want to show up on the related list.  Should be a subset of the Fields to Show"/>
+    <design:attribute name="filter" label="Related object filter" Description="SOQL filter to be applied"/>
+    <design:attribute name="customLabel" label="Related List Custom Label" Description="SOQL filter to be applied"/>
+    <design:attribute name="orderby" label="Order by" Description="Comma separed fields to order (API Names)"/>
+    <design:attribute name="autoRefresh" label="AutoRefresh List?" Description="Useful to refresh formula fields..."/>
+    <design:attribute name="blue" label="Blue Header?" Description="regular or blue..."/>
+    <design:attribute name="bold" label="Bold Fields" Description="Comma-separated list of API names of the fields you want  in bold"/>
+    <design:attribute name="acciones" label="Show Actions?" Description="Show mass action buttons at the bottom of the list or not?..."/>
+</design:component>

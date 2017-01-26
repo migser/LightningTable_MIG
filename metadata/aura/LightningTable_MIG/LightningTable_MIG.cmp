@@ -1,0 +1,206 @@
+<aura:component implements="flexipage:availableForAllPageTypes,force:hasRecordId,force:hasSObjectName" controller="LTableMigCtrl">
+
+	<ltng:require scripts="/resource/lodash2" afterScriptsLoaded="{!c.doInit}"/>
+
+	<aura:attribute name="objectName" type="string" required="true" default="Contact" />
+    
+	<aura:attribute name="lookupField" type="string" required="true" default="AccountId"/>
+
+	<aura:attribute name="displayFields" type="string" required="true" default="Name, Phone, Email"/>
+	<aura:attribute name="editableFields" type="string" required="false" default="Phone"/>
+    <aura:attribute name="bold" type="string" required="false" default=""/>
+    <aura:attribute name="boldFields" type="string[]" required="false" default="[]"/>
+
+	<!--internal only attributes-->
+	<aura:attribute name="recordId" type="String" />
+    <aura:attribute name="sObjectName" type="string"/>
+    <aura:attribute name="autoRefresh" type="boolean"/>
+    <aura:attribute name="parentId" type="String" />
+    <aura:attribute name="parentId_val" type="String" />
+    <aura:attribute name="filter" type="String" />
+	<aura:attribute name="results" type="object[]"/>
+	<aura:attribute name="displayFieldsArray" type="object[]"/>
+	<aura:attribute name="pluralLabel" type="string"/>
+    <aura:attribute name="customLabel" type="string"/>
+    <aura:attribute name="showSpinner" type="Boolean"/>
+    <aura:attribute name="showSpinner2" type="Boolean"/>
+    <aura:attribute name="blue" type="Boolean" default="false"/>
+    <aura:attribute name="orderby" type="string" />
+    <aura:attribute name="acciones" type="Boolean" default="true"/>
+    <aura:attribute name="selectedRecords" type="String[]" default="[]"/>
+    <aura:attribute name="selectedRecordsP" type="String" default=""/>
+    
+ <!--   <aura:handler event="c:PowerRefresh_MIG" action="{!c.doInit}"/> -->
+<aura:if isTrue="{!v.blue}" >
+      <div class="slds-card slds-m-horizontal--small" aura:id="tabla" >
+          <div style="background-color: #0070d2; color:#ffffff">
+		<div class="slds-card__header slds-grid">
+			<div class="slds-media slds-media--center slds-has-flexi-truncate">
+				<div class="slds-media__body">
+                    <aura:if isTrue="{!v.customLabel}" >
+                        <h2 class="slds-text-heading--small slds-truncate">{!v.customLabel} ({!v.results.length})</h2>
+                    <aura:set attribute="else">    
+						<h2 class="slds-text-heading--small slds-truncate">{!v.pluralLabel} ({!v.results.length})</h2>
+                    </aura:set>
+                    </aura:if>
+				</div>
+			</div>
+			<!-- <div class="slds-no-flex">
+				<div class="slds-button-group">
+					<button class="slds-button slds-button&neutral slds-button&small" onclick="{!c.createRecord}">New</button>					
+				</div>
+			</div> -->
+              </div>
+		</div>
+		<div class="slds-card__body" >
+			<table class="slds-table slds-table--bordered slds-no-row-hover slds-table--cell-buffer">
+                       <aura:if isTrue="{!v.showSpinner||v.showSpinner2}">
+					 <lightning:spinner aura:id="mySpinner" />
+    		
+  </aura:if>
+				<thead>
+					<tr>
+						<aura:if isTrue="{!v.acciones}" >
+                        <th class="slds-text-heading--label" scope="col">
+								<div class="slds-truncate">
+									<ui:inputCheckbox name="all" aura:id="all" click="{!c.selectRecord}"/>
+								</div>
+							</th>
+						</aura:if>
+						<aura:iteration items="{!v.displayFieldsArray}" var="field">
+							<th class="slds-text-heading--label" scope="col">
+								<div class="slds-truncate">{!field.describe.label}</div>
+							</th>
+						</aura:iteration>
+					</tr>
+				</thead>
+          
+
+
+				<tbody>
+					<aura:iteration items="{!v.results}" var="record" indexVar="index">
+						<tr class="slds-hint-parent">
+                            <aura:if isTrue="{!v.acciones}" >
+                            <td>
+                            	<ui:inputCheckbox name="{!index}" aura:id="Check" click="{!c.selectRecord}"/>
+                            </td>
+                        	</aura:if>
+							<aura:iteration items="{!v.displayFieldsArray}" var="field" start="0">
+								<td class="{!'slds-size--1-of-' + v.displayFieldsArray.length}" data-label="{!field.describe.label}">
+									<aura:if isTrue="{!field.describe.name=='Name'}" >
+                                 <!--   <a onclick="{!c.navToRecord}" id="{!record.Id}" > -->
+                                       
+										<c:LightningField_MIG boldFields="{!v.boldFields}" id="{!record.Id}" record="{!record}" fieldDescribe="{!field}"  autorefresh="{!autoRefresh}"/>
+								<!--	</a>
+                                    -->  
+                                    <aura:set attribute="else">
+										<c:LightningField_MIG boldFields="{!v.boldFields}" record="{!record}" fieldDescribe="{!field}" autorefresh="{!autoRefresh}"/>
+								    </aura:set>
+									  </aura:if>
+								</td>
+							</aura:iteration>
+		
+							
+						</tr>
+					</aura:iteration>
+					
+				</tbody>
+                    
+    
+			</table>
+		</div>
+		 <!--<div class="slds-card__footer"><a href="javascript:void(0);">View All <span class="slds-assistive-text">entity type</span></a></div>
+			
+        <aura:if isTrue="{!v.acciones}" >
+	        <c:BotonAccion_MIG num_records="{!v.selectedRecords.length}" etiqueta="Borrar" icono="utility:delete" accion="c.borra" objeto="{!objectName}" records="{!v.selectedRecordsP}"/>
+        </aura:if>
+-->
+	</div>
+<aura:set attribute="else">    
+    <div class="slds-card slds-m-horizontal--small" aura:id="tabla">
+		<div class="slds-card__header slds-grid">
+			<div class="slds-media slds-media--center slds-has-flexi-truncate">
+				<div class="slds-media__body">
+                    <aura:if isTrue="{!v.customLabel}" >
+                        <h2 class="slds-text-heading--small slds-truncate">{!v.customLabel} ({!v.results.length})</h2>
+                    <aura:set attribute="else">    
+						<h2 class="slds-text-heading--small slds-truncate">{!v.pluralLabel} ({!v.results.length})</h2>
+                    </aura:set>
+                    </aura:if>
+				</div>
+			</div>
+			<!-- <div class="slds-no-flex">
+				<div class="slds-button-group">
+					<button class="slds-button slds-button&neutral slds-button&small" onclick="{!c.createRecord}">New</button>					
+				</div>
+			</div> -->
+		</div>
+		<div class="slds-card__body">
+			<table class="slds-table slds-table--bordered slds-no-row-hover slds-table--cell-buffer">
+                       <aura:if isTrue="{!v.showSpinner||v.showSpinner2}">
+					 <lightning:spinner aura:id="mySpinner" />
+    		
+  </aura:if>
+				<thead>
+					<tr>
+						<aura:if isTrue="{!v.acciones}" >
+                        <th class="slds-text-heading--label" scope="col">
+								<div class="slds-truncate">
+									<ui:inputCheckbox name="all" aura:id="all" click="{!c.selectRecord}"/>
+								</div>
+							</th>
+						</aura:if>
+						<aura:iteration items="{!v.displayFieldsArray}" var="field">
+							<th class="slds-text-heading--label" scope="col">
+								<div class="slds-truncate">{!field.describe.label}</div>
+							</th>
+						</aura:iteration>
+					</tr>
+				</thead>
+          
+
+
+				<tbody>
+					<aura:iteration items="{!v.results}" var="record" indexVar="index">
+						<tr class="slds-hint-parent">
+                            <aura:if isTrue="{!v.acciones}" >
+                            <td>
+                            	<ui:inputCheckbox name="{!index}" aura:id="Check" click="{!c.selectRecord}"/>
+                            </td>
+                        	</aura:if>
+							<aura:iteration items="{!v.displayFieldsArray}" var="field" start="0">
+								<td class="{!'slds-size--1-of-' + v.displayFieldsArray.length}" data-label="{!field.describe.label}">
+									<aura:if isTrue="{!field.describe.name=='Name'}" >
+                                 <!--   <a onclick="{!c.navToRecord}" id="{!record.Id}" > -->
+                                        
+										<c:LightningField_MIG boldFields="{!v.boldFields}" id="{!record.Id}" record="{!record}" fieldDescribe="{!field}"  autorefresh="{!autoRefresh}"/>
+								<!--	</a>
+                                    -->  
+                                    <aura:set attribute="else">
+										<c:LightningField_MIG boldFields="{!v.boldFields}" id="{!record.Id}" record="{!record}" fieldDescribe="{!field}"  autorefresh="{!autoRefresh}"/>
+								    </aura:set>
+									  </aura:if>
+								</td>
+							</aura:iteration>
+		
+							
+						</tr>
+					</aura:iteration>
+					
+				</tbody>
+                    
+    
+			</table>
+		</div>
+		 <!--<div class="slds-card__footer"><a href="javascript:void(0);">View All <span class="slds-assistive-text">entity type</span></a></div>
+			
+        <aura:if isTrue="{!v.acciones}" >
+	        <c:BotonAccion_MIG num_records="{!v.selectedRecords.length}" etiqueta="Borrar" icono="utility:delete" accion="c.borra" objeto="{!objectName}" records="{!v.selectedRecordsP}"/>
+        </aura:if>
+-->
+	</div>
+</aura:set>
+</aura:if>
+      
+
+</aura:component>

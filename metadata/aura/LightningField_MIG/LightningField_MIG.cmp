@@ -1,0 +1,119 @@
+<aura:component controller="LTableMigCtrl">
+    <aura:attribute name="record" type="object" required="true"/>
+    <aura:attribute name="autoRefresh" type="object" required="true" default="true"/>
+    <aura:attribute name="fieldDescribe" type="object" required="true"/>
+    <aura:attribute name="id" type="string" required="false"/>
+    <aura:attribute name="destino" type="string" required="false"/>
+    <aura:attribute name="simpleOutput" type="string" required="false"/>
+    <aura:attribute name="boldFields" type="string[]" />
+    <aura:attribute name="Image" type="boolean" required="false" default="false"/>
+        <aura:attribute name="isBold" type="boolean"  default="false"/>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+    
+   <!-- <aura:registerEvent name="Refresh" type="c:PowerRefresh_MIG"/> -->
+    
+    <!-- type=Image -->
+
+    <aura:if isTrue="{!and(v.fieldDescribe.describe.type == 'string' ,v.Image)}">
+        <ui:outputRichText value="{!v.simpleOutput}"/>        
+    </aura:if>  
+        <!-- type=textarea -->
+<!--
+    <aura:if isTrue="{!v.fieldDescribe.describe.type== 'textarea'}">
+                <aura:if isTrue="{!v.fieldDescribe.editable}">            
+            <input value="{!v.simpleOutput}" onblur="{!c.updateRecord}" class="slds-input slds-input-small"/>               
+            <aura:set attribute="else">
+                <ui:outputRichText value="{!v.simpleOutput}"/>                                                
+            </aura:set>
+        </aura:if> 
+    </aura:if>    
+-->
+    <div aura:id="texto">
+    <!-- types=string, phone, email -->
+    <aura:renderif isTrue="{!and(v.fieldDescribe.describe.type == 'string', not(v.Image)) || v.fieldDescribe.describe.type == 'phone' || v.fieldDescribe.describe.type== 'email' || v.fieldDescribe.describe.type== 'textarea' }">
+        <aura:renderif isTrue="{!v.fieldDescribe.editable}">            
+            <input value="{!v.simpleOutput}" onblur="{!c.updateRecord}" class="slds-input slds-input--small"/>               
+            <aura:set attribute="else">
+                <aura:if isTrue="{!v.fieldDescribe.describe.name=='Name'}" >
+                                    <a onclick="{!c.navToRecord}" id="{!v.destino}" > 
+                                        {!v.simpleOutput}	
+									</a>                                    
+                                    <aura:set attribute="else">
+										{!v.simpleOutput}
+								    </aura:set>
+									  </aura:if>
+               </aura:set>
+        </aura:renderif>        
+    </aura:renderif>
+    
+    <!-- types=boolean -->
+    <aura:renderif isTrue="{!v.fieldDescribe.describe.type == 'boolean'}">
+        <div class="slds-form-element">
+            <div class="slds-form-element__control">
+                <label class="slds-checkbox">
+                    <aura:renderif isTrue="{!v.fieldDescribe.editable}">
+                        <input type="checkbox" name="options" id="checkbox-01" checked ="{!v.simpleOutput}"/>
+                        <aura:set attribute="else">
+                            <input type="checkbox" name="options" id="checkbox-01" disabled="" checked ="{!v.simpleOutput}"/>
+                        </aura:set>
+                    </aura:renderif>
+                    <span class="slds-checkbox--faux" onclick="{!c.flipCheckbox}"></span>
+                </label>
+            </div>
+        </div>            
+    </aura:renderif>
+    
+    <!-- numerical stuff -->
+    <aura:if isTrue="{!v.fieldDescribe.describe.type == 'integer' || v.fieldDescribe.describe.type == 'double' }">
+        <aura:renderif isTrue="{!v.fieldDescribe.editable}">            
+            <input value="{!v.simpleOutput}" onblur="{!c.updateRecord}" class="slds-input slds-input--small"/>               
+            <aura:set attribute="else">
+                {!v.simpleOutput}
+            </aura:set>
+        </aura:renderif>        
+    </aura:if>
+    
+        <!-- percent -->
+    <aura:if isTrue="{!v.fieldDescribe.describe.type== 'percent'}">
+        <aura:renderif isTrue="{!v.fieldDescribe.editable}">            
+            <input value="{!v.simpleOutput}" onblur="{!c.updateRecord}" class="slds-input slds-input--small"/>               
+            <aura:set attribute="else">{!v.simpleOutput}&nbsp;%
+            </aura:set>
+        </aura:renderif>        
+    </aura:if>
+    <!-- Currency -->
+    
+    <aura:if isTrue="{!v.fieldDescribe.describe.type == 'currency'}">
+        <aura:renderif isTrue="{!v.fieldDescribe.editable}">            
+            <ui:inputCurrency value="{!v.simpleOutput}" blur="{!c.updateRecord}" class="slds-input slds-input--small"/>               
+            <aura:set attribute="else">
+               <ui:outputCurrency value="{!v.simpleOutput}"/>
+            </aura:set>
+        </aura:renderif>        
+    </aura:if>
+    
+    <!-- dates -->
+    <aura:renderif isTrue="{!v.fieldDescribe.describe.type == 'date' || v.fieldDescribe.describe.type == 'datetime'}">
+        {!v.simpleOutput}
+    </aura:renderif>
+    
+    <!--picklists-->
+    <aura:renderif isTrue="{!v.fieldDescribe.describe.type == 'picklist'}">
+        <aura:renderif isTrue="{!v.fieldDescribe.editable}"> 
+            <select class="slds-select" onchange="{!c.changePicklist}">
+                <aura:iteration items="{!v.fieldDescribe.describe.picklistOptions}" var="option">
+                    <aura:renderif isTrue="{!v.simpleOutput == option.value}">
+                        <option value="{!option.value}" selected="selected">{!option.label}</option>
+                        <aura:set attribute="else">
+                            <option value="{!option.value}">{!option.label}</option>
+                        </aura:set>
+                    </aura:renderif>
+                </aura:iteration>
+            </select>
+            <aura:set attribute="else">
+                {!v.simpleOutput}
+            </aura:set>
+        </aura:renderif>
+    </aura:renderif>
+    </div>
+</aura:component>
