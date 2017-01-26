@@ -1,5 +1,6 @@
 public class LTableMigCtrl {
     //Controlador de Powerrelated list
+    // Nueva Versión
     @AuraEnabled
     public static string query(String soql,string sObjectName, string parentId, string recordId, String filter, string orderby) {
         
