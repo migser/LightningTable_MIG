@@ -32,6 +32,119 @@ public class LTableMigCtrl {
        
 
     }
+    public static string formatea(List<sObject> resultados, String describeFields) {
+        Integer debug_mode=2;
+        descRowLTMigParser descripcion = descRowLTMigParser.parse(describeFields);
+        if (debug_mode>=1) {
+            System.debug('**empezando Formatea!');
+ 	        System.debug('*** Campos :'+descripcion.queryFields);
+        }
+
+        Map<String,descRowLTMigParser.Fields> campos = descripcion.map_fields;
+        Set<String> dispFields = new Set<String>(descripcion.queryFields.toLowerCase().split(','));
+        List<Map<String,Object>> resultado = new List<Map<String,Object>>();
+		if (debug_mode>=2) {            
+	            System.debug('****Campos SON: '+dispFields);
+            }
+        
+        for ( sObject s : resultados) {
+            if (debug_mode>=2) {            
+	            System.debug('****Formateando registro: '+s.id);
+            }
+            Map<String, Object> record = new Map<String, Object>();
+            for (String c : dispFields){
+                Map<String, Object> field = new Map<String, Object>();
+                if (debug_mode>=2) {            
+	         	   System.debug('******Formateando campo: '+c+': '+campos.get(c));
+            	}
+                if (campos.containsKey(c) && campos.get(c).valid) {
+                    if (campos.get(c).related) {
+                        
+                        field.put('nav',true);
+                        field.put('fk',s.get(campos.get(c).fk));
+                        field.put('recordid',s.get(campos.get(c).fk));
+                        
+                    }
+                    if (c.equalsIgnoreCase('name')) {
+                        
+                        field.put('nav',true);
+                        field.put('fk',s.get('id'));
+                    }
+                    if (!campos.get(c).related){
+                        field.put('recordid',s.get('id'));
+                    }
+                    field.put('value', getValor(s,c));
+                    field.put('type', campos.get(c).type_Z);
+                    field.put('label', campos.get(c).label);
+                    field.put('name', campos.get(c).name);
+                    field.put('id', campos.get(c).id);
+                    record.put(c,field);
+                }   
+               
+            }
+            resultado.add(record);
+        }
+        
+        
+        return JSON.serialize(resultado);
+    }
+  
+    public static Object getValor(sObject s, String c){
+        if (c.contains('.')) {
+            Integer separador=c.indexOf('.');
+            String new_obj = c.substring(0,separador );
+            String resto = c.substring(separador +1);
+            System.debug('Recursivo: ('+new_obj+', '+resto+')' );
+            return getValor(s.getSObject(new_obj),resto);
+        } else {
+            System.debug('Fin Recursividad: ('+c+')' );
+	        return s.get(c);
+        }
+    }
+    
+    @AuraEnabled
+    public static string query2(string selectFields,string lookupField,string sObjectName,string parentId,string recordId,String filter,string orderby,String describeFields) {
+        
+        Integer debug_mode=2;
+        String select_str ='Select '+selectFields;
+        String from_str =' From '+sObjectName;
+        String where_str ='';
+        String order_str = '';
+		
+        //ES RELATED?
+        if (lookupField!=null&&!lookupField.equals('')) {
+            where_str = ' Where '+lookupField+'=\'';
+            //HAY QUE BUSCAR AL PADRE O SOY YO?
+            if (parentId!=null&&!parentId.equals('')) {
+                where_str = where_str+getParentId( sObjectName,  parentId,  recordId) + '\'';
+            } else {
+                where_str = where_str+recordId+'\''; 
+            }
+        }
+        //TIENE FILTRO?
+        if (filter!=null&&!filter.equals('')) {
+            if (where_str=='') {
+                where_str=' Where '+filter;
+            } else {
+            	where_str =where_str+ ' AND ' + filter;
+            }
+        }
+		//Esta ordenada? 
+          if (orderby!=null&&!orderby.equals('')) {
+            order_str = ' Order by '+orderby;
+         }
+        if (debug_mode>=1){
+            System.debug('**Ejecutando query --> '+select_str+from_str+where_str+order_str);
+        }
+        List<sObject> resultados = Database.query(select_str+from_str+where_str+order_str);
+        
+         if (debug_mode>=1){
+            System.debug('**Resultado query --> '+JSON.serialize(resultados));
+        } 
+		return formatea(resultados, describeFields);
+       
+
+    }
     
 	@AuraEnabled
     public static string getParentId(string sObjectName, string parentId, string recordId) {
@@ -231,5 +344,210 @@ public class LTableMigCtrl {
         System.debug('copia :'+ objeto);
    
     }*/
+	public static Map<String, Object> describe_related(string parentObject, String field) {
+        Map<String, Object> result = new Map<String, Object>();
+        Schema.SObjectType targetType = Schema.getGlobalDescribe().get(parentObject);
+        Schema.DescribeSObjectResult sobjResult = targetType.getDescribe();
+        Map<String, Schema.SObjectField> fieldMap = sobjResult.fields.getMap();
+        if (fieldMap.containsKey(field)){
+        	Schema.DescribeFieldResult descField = fieldMap.get(field).getDescribe();
+            result.put('type', descField.getType().name().toLowerCase());
+            result.put('name', descField.getName());
+            result.put('label', descField.getLabel());   
+            result.put('valid',true);
+            result.put('related',true);
+            result.put('parentObject',parentObject);
+        } else {
+            result.put('related',true);
+            result.put('parentObject',parentObject);
+            result.put('valid',false);
+            result.put('error','Invalid field name');
+        }
+                
+    	return result;
+    }
+    @AuraEnabled
+    public static String describe2(string displayFields, string sObjectName, string parentId, string recordId, String filter, string orderby) {
+        Integer debug_mode=0;
+        if (debug_mode>=2){
+            System.debug('**Empezando describe2 **');
+            System.debug('--Parametros:');
+            System.debug('----displayFields: '+displayFields);
+            System.debug('----parentId: '+parentId);
+            System.debug('----recordId: '+recordId);
+            System.debug('----filter: '+filter);
+            System.debug('----orderby: '+orderby);
+            
+        }
+        Schema.SObjectType targetType = Schema.getGlobalDescribe().get(sObjectName);
+        if (targetType == null) {
+            return '[{"message":"The requested resource does not exist","errorCode":"NOT_FOUND"}]';
+        }
+
+        Schema.DescribeSObjectResult sobjResult = targetType.getDescribe();
+        
+        Map<String, Schema.SObjectField> fieldMap = sobjResult.fields.getMap();
+        
+        List<Object> fields = new List<Object>();
+        Set<String> dispFields = new Set<String>(displayFields.toLowerCase().split(','));
+        if (debug_mode>=2){
+            System.debug('--Sacando los metadatos de los campos:');
+        }
+        // NOTA: Por ahora no funciona con relaciones polimórficas...
+       // Map<String,List<Schema.sObjectType>> obj_relations = new Map<String,List<Schema.sObjectType>>();
+        Map<String,Map<String,String>> obj_relations = new Map<String,Map<String,String>>();
+        for(Schema.SObjectField f : fieldMap.values()){
+            Schema.DescribeFieldResult d = f.getDescribe();
+            if (d.getRelationshipName()<>null && d.getReferenceTo().size()>0) {
+                Map<String,String> rel = new Map<String,String>();
+                rel.put('parentObject', d.getReferenceTo().get(0).getDescribe().getName());
+                rel.put('fk', d.getName());
+                obj_relations.put(d.getRelationshipName().toLowerCase(), rel);
+        
+                if (debug_mode>=2){
+                    System.debug('--Relación de : '+d.getName());
+                    System.debug('----Nombre : '+d.getRelationshipName());
+                    for(Schema.SObjectType reference : d.getReferenceTo()) {
+                        System.debug('------object name: ' + reference.getDescribe().getName());
+                        System.debug('------object label: ' + reference.getDescribe().getLabel());
+                    }
+                } 
+            }
+        }
+        String queryFields = 'id';
+
+        
+        for (String key : dispFields) {
+            if (debug_mode>=2){
+                System.debug('--Campo: '+key);
+            }
+            Map<String, Object> field = new Map<String, Object>();   
+            field.put('id',key);
+            //Solo hacemos el describe de los campos incluidos en display fields
+            if (fieldMap.containsKey(key)){
+			
+            	Schema.DescribeFieldResult descField = fieldMap.get(key).getDescribe();
+            	   
+            	field.put('type', descField.getType().name().toLowerCase());
+            	field.put('name', descField.getName());
+            	field.put('label', descField.getLabel());   
+                field.put('valid',true);
+                if (!key.equalsIgnoreCase('id')) {
+                	queryFields= queryFields+','+key;
+                    if (debug_mode>=2){
+                        System.debug('----Añadimos el campo: '+key+' a la lista de queryFields.');
+                    }
+                }
+                
+                if (debug_mode>=2){
+           		 
+                    System.debug('----Nombre: '+key);
+                    System.debug('----Label: '+field.get('label'));
+                    System.debug('----Nombre: '+field.get('name'));
+                    System.debug('----Tipo: '+field.get('type'));
+        		}
+                
+                //Si es Picklist sacamos los posibles valores
+                if (field.get('type')=='picklist'){
+                	List<Schema.PicklistEntry> pickListValues = descField.getPickListValues();
+                	List<pickListValues> options = new List<picklistValues>();
+                	for (Schema.PicklistEntry plv : pickListValues) {
+                    	pickListValues pv = new pickListValues();
+	                    pv.label = plv.getLabel();
+    	                pv.value = plv.getValue();
+        	            options.add(pv);
+            	    }
+                    if (debug_mode>=2){
+           			    System.debug('----Valores Picklist: '+options);
+                    }
+                	field.put('picklistOptions', options);
+            	}
+                
+                
+            } else {
+                if (key.contains('.')) {
+                   Integer i = key.indexOf('.');
+                   String relacion = key.substring(0, i);
+                   String resto = key.substring(i+1);
+                   
+                   if (debug_mode>=2){
+           			    System.debug('----Es una relación: ');
+                       System.debug('------Relación: '+relacion);
+                       System.debug('------Campo: '+resto);
+                    }
+                    if (obj_relations.containsKey(relacion)){
+                            	
+                                if (debug_mode>=2){
+                                    System.debug('------referencia a : '+obj_relations.get(relacion));
+                                }
+                        Map<String, Object> result = describe_related(obj_relations.get(relacion).get('parentObject'),resto);
+                        field.putAll(result);
+                        field.put('fk',obj_relations.get(relacion).get('fk'));
+                        if ((Boolean)result.get('valid')) {
+                            //Solo añadimos la FK y el campo a la select si está todo Ok
+	                        queryFields=queryFields+','+key;
+                            if (!queryFields.contains(obj_relations.get(relacion).get('fk'))) {
+    	                        queryFields=queryFields+','+obj_relations.get(relacion).get('fk');
+        	                }
+                            
+                        }
+                                     
+                             
+                    } else {
+                        field.put('valid',false);
+                            field.put('error','Invalid relationship');
+                        if (debug_mode>=2){
+           			    	System.debug('----La relación no existe!');
+                            
+                    	}
+                    }
+                    
+                } else {
+                    field.put('valid',false);
+                         field.put('error','Invalid field name');
+                  	if (debug_mode>=2){
+           			    System.debug('----Este campo no existe!');
+                        
+                    }  
+                }
+            }
+            fields.add(field);
+        }
+        
+        Map<String, Object> result = new Map<String, Object>();
+        result.put('fields', fields);
+        map<string, string> objectProperties = new map<string, string>();
+        objectProperties.put('pluralLabel', sobjResult.getLabelPlural());
+        result.put('objectProperties', objectProperties);
+        result.put('queryFields', queryFields);
+        
+        if (debug_mode>=1){
+        	System.debug('***Resultado Final***');
+            System.debug('--Plural: '+((map<string, string>)result.get('objectProperties')).get('pluralLabel'));
+            System.debug('--Select: '+result.get('queryFields'));
+			System.debug('--Campos: ');
+            List <Object> fs = (List<Object>)result.get('fields');
+                for (Object f2 : fs) {
+                    Map<String, Object> f = (Map<String, Object>)f2;
+                    System.debug('-*-*Campo: '+f.get('id') );                      
+                    System.debug('----Label: '+f.get('label'));
+                    System.debug('----Nombre: '+f.get('name'));
+                    System.debug('----Tipo: '+f.get('type'));
+                    System.debug('----Valores Picklist: '+f.get('picklistOptions'));
+                    System.debug('----Relacion: '+f.get('related'));
+                    System.debug('----Padre: '+f.get('parentObject')); 
+                    System.debug('----Fk: '+f.get('fk')); 
+                    System.debug('----Valido: '+f.get('valid'));
+                    System.debug('----Error: '+f.get('error'));
+               	}
+         }
+        
+        return JSON.serialize(result);
+            
+      
+
+    }
+    
+  
     
 }
